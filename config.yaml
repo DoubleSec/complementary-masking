@@ -1,0 +1,45 @@
+features:
+  # Pitch characteristics
+  release_speed: numeric
+  release_pos_x: numeric
+  release_pos_z: numeric
+  release_spin_rate: numeric
+  spin_axis: numeric
+  release_extension: numeric
+  pfx_x: numeric
+  pfx_z: numeric
+  plate_x: numeric
+  plate_z: numeric
+
+  # situation
+  balls: numeric
+  strikes: numeric
+
+  # pitcher info
+  p_throws: categorical
+
+  # batter info
+  stand: categorical
+  sz_top: numeric
+  sz_bot: numeric
+  
+
+keys:
+  - game_pk
+  - at_bat_number
+  - pitch_number
+
+train_data_path: ./data/baseball.parquet
+split_seed: 212
+morphers_path: ./data/morphers.yaml
+
+# Nothing below is set up yet.
+
+model_parameters:
+  n_layers: 3
+  layer_size: 128
+
+training_parameters:
+  batch_size: 2048
+  learning_rate: 0.0005
+  epochs: 5

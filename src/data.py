@@ -73,3 +73,19 @@ class PretrainingDataset(torch.utils.data.Dataset):
             return_dict = return_dict | {key: row[key] for key in self.key_cols}
 
         return return_dict
+
+
+if __name__ == "__main__":
+    import yaml
+
+    with open("./config.yaml", "r") as f:
+        config = yaml.load(f, Loader=yaml.CLoader)
+
+    ds = PretrainingDataset(
+        parquet_path=config["train_data_path"],
+        cols=config["features"],
+        key_cols=config["keys"],
+    )
+
+    print(len(ds))
+    print(ds[200])

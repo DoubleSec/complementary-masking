@@ -29,6 +29,10 @@ keys:
   - at_bat_number
   - pitch_number
 
+# For testing mainly
+aux_cols:
+  - description
+
 train_data_path: ./data/2023_data.parquet
 split_seed: 212
 morphers_path: ./data/morphers.yaml
@@ -36,16 +40,18 @@ morphers_path: ./data/morphers.yaml
 model_params:
   embedding_size: 128
   mask_p: 0.5
-  masking_strategy: zero
+  masking_strategy: learned
   projection_size: 128
   tr_nhead: 8
   tr_dim_ff: 1024
   tr_n_layers: 4
   proj_n_layers: 1
-  bt_lambda: 0.005
+  # This value will be scaled by 1 / projection size, so the total weight
+  # of the off-diagonal terms is constant regardless of the projection size.
+  bt_lambda: 0.25
   lr: 0.0001
   weight_decay: 0.0
 
 training_params:
   batch_size: 2048
-  epochs: 8
+  epochs: 5

@@ -19,10 +19,12 @@ class PretrainingDataset(torch.utils.data.Dataset):
         cols: dict,
         key_cols: list,
         return_keys: bool = False,
+        aux_cols: list = None,
         morpher_states: dict = None,
     ):
         self.key_cols = key_cols
         self.return_keys = return_keys
+        self.aux_cols = aux_cols if aux_cols is not None else []
 
         ds = pl.read_parquet(parquet_path)
 
@@ -53,6 +55,8 @@ class PretrainingDataset(torch.utils.data.Dataset):
                     morpher(pl.col(feature))
                     for feature, morpher in self.morphers.items()
                 ],
+                # Auxiliary columns
+                *[pl.col(ac) for ac in self.aux_cols],
             )
             # Only drop nulls based on inputs
             .drop_nulls([feature for feature in self.morphers])
@@ -72,6 +76,9 @@ class PretrainingDataset(torch.utils.data.Dataset):
         if self.return_keys:
             return_dict = return_dict | {key: row[key] for key in self.key_cols}
 
+        if len(self.aux_cols) > 0:
+            return_dict |= {col: row[col] for col in self.aux_cols}
+
         return return_dict
 
 
@@ -85,6 +92,7 @@ if __name__ == "__main__":
         parquet_path=config["train_data_path"],
         cols=config["features"],
         key_cols=config["keys"],
+        aux_cols=config["aux_cols"],
     )
 
     print(len(ds))

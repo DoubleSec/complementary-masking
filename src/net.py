@@ -30,6 +30,7 @@ class RogersNet(pl.LightningModule):
         weight_decay: float,
     ):
         super().__init__()
+        self.save_hyperparameters()
 
         # Feature embedder
         self.embedding_layer = FeatureEmbedder(
@@ -56,7 +57,9 @@ class RogersNet(pl.LightningModule):
         )
 
         # cls token
-        self.cls = nn.Parameter(torch.randn([1, 1, embedding_size]) * 0.02)
+        self.register_parameter(
+            "cls", nn.Parameter(torch.randn([1, 1, embedding_size]) * 0.02)
+        )
 
         self.transformer = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
@@ -80,6 +83,11 @@ class RogersNet(pl.LightningModule):
         self.lr = lr
         self.weight_decay = weight_decay
         self.loss = BarlowTwinsLoss(lambda_=bt_lambda)
+
+    def on_train_start(self):
+        self.logger.log_hyperparams(
+            {k: v for k, v in self.hparams.items() if k != "morphers"}
+        )
 
     def configure_optimizers(self):
         return torch.optim.Adam(
@@ -125,3 +133,17 @@ class RogersNet(pl.LightningModule):
         self.log("validation_loss", loss)
 
         return loss
+
+    def inference_forward(self, x):
+        """Same as normal forward but it skips masking and only returns once."""
+        x = self.embedding_layer(x)
+        x = self.feature_norm(x)
+
+        normed_cls = self.feature_norm(self.cls)
+
+        x = self.positional_encoding(x)
+        x = torch.cat([x, normed_cls.expand([x.shape[0], -1, -1])], dim=1)
+        x = self.transformer(x)
+        x = self.projection_head(x[:, -1, :])
+
+        return x

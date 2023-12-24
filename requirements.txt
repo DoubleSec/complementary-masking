@@ -3,3 +3,4 @@ pytorch-lightning>=2.1.2
 polars>=0.20.1
 numpy>=1.26.2
 pybaseball>=2.2.7
+mlflow>=2.9.2

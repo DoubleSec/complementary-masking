@@ -1,8 +1,8 @@
-from typing import Any
-from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
 import torch
 from torch import nn
 import lightning.pytorch as pl
+from torchmetrics import MetricCollection
+from torchmetrics.classification import BinaryAccuracy, BinaryAUROC
 
 from .network_layers import (
     FeatureEmbedder,
@@ -167,3 +167,105 @@ class RogersNet(pl.LightningModule):
             return y_hat, extra_cols
         else:
             return y_hat
+
+
+class LinearProbeNet(pl.LightningModule):
+    """Small network for linear probing."""
+
+    def __init__(
+        self,
+        embedding_dim: int,
+        n_layers: int,
+        targets: str,
+        lr: float,
+        weight_decay: float,
+    ):
+        super().__init__()
+        # We'll log these manually later.
+        self.save_hyperparameters(logger=False)
+
+        # Only one target, please.
+        # I'm not modifying the rest yet.
+        self.targets = targets if isinstance(targets, list) else [targets]
+
+        if n_layers == 1:
+            self.probe = nn.Sequential(
+                nn.LayerNorm(embedding_dim),
+                nn.ReLU(),
+                nn.Linear(embedding_dim, len(self.targets)),
+            )
+        else:
+            raise NotImplementedError("I'll get this later.")
+
+        # Loss and metrics
+
+        self.loss = nn.BCEWithLogitsLoss(reduction="none")
+        metrics = MetricCollection(
+            {
+                # "accuracy": BinaryAccuracy(),
+                "AUROC": BinaryAUROC(),
+            }
+        )
+        # Make a metric collection for each target.
+        # These are just in the target order.
+        self.train_metrics = [
+            metrics.clone(prefix=f"{target}_train_") for target in self.targets
+        ]
+        self.validation_metrics = [
+            metrics.clone(prefix=f"{target}_validation_") for target in self.targets
+        ]
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(
+            params=self.parameters(),
+            lr=self.hparams.lr,
+            weight_decay=self.hparams.weight_decay,
+        )
+
+    def on_fit_start(self):
+        # This is punishment for my hubris.
+        self.train_metrics = [metric.to(self.device) for metric in self.train_metrics]
+        self.validation_metrics = [
+            metric.to(self.device) for metric in self.validation_metrics
+        ]
+
+    def forward(self, x):
+        return self.probe(x)
+
+    def _step(self, x):
+        y_hat = self(x["embeddings"])
+        y = torch.stack([x[target] for target in self.targets], dim=-1)
+        loss = self.loss(y_hat, y)
+        return loss, y, y_hat
+
+    def training_step(self, x):
+        loss, y, y_hat = self._step(x)
+
+        # Log the loss per target.
+        self.log_dict(
+            {
+                f"{target}_train_loss": loss[:, i].mean()
+                for i, target in enumerate(self.targets)
+            }
+        )
+        # Log training metrics
+        for i, metrics in enumerate(self.train_metrics):
+            self.log_dict(metrics(y_hat[:, i], y[:, i].int()))
+
+        return loss.mean()
+
+    def validation_step(self, x):
+        loss, y, y_hat = self._step(x)
+
+        # Log the loss per target.
+        self.log_dict(
+            {
+                f"{target}_validation_loss": loss[:, i].mean()
+                for i, target in enumerate(self.targets)
+            }
+        )
+        # Log training metrics
+        for i, metrics in enumerate(self.validation_metrics):
+            self.log_dict(metrics(y_hat[:, i], y[:, i].int()))
+
+        return loss.mean()

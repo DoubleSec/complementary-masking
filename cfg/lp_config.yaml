@@ -34,6 +34,22 @@ aux_cols:
 
 split_seed: 212
 train_data_path: ./data/2023_data.parquet
-checkpoint_name: epoch=0-step=283
-run_id: 3a0e3a828a654da9840f35565bb8c0bc
+mlflow_experiment: linear_probes
 
+model_source:
+  checkpoint_name: epoch=5-step=1698
+  run_id: e31b30f3dab7418c87e1f037a150e2a4
+
+model_params:
+  n_layers: 1
+  targets:
+    - fastball
+    - curveball
+    - slider
+    - changeup
+  lr: 0.001
+  weight_decay: 0.01
+
+training_params:
+  batch_size: 128
+  epochs: 16

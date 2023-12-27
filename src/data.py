@@ -95,7 +95,7 @@ class LinearProbeDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         row = self.targets.row(idx, named=True)
         return {col: torch.tensor(row[col], dtype=torch.float32) for col in row} | {
-            "embedding": self.embeddings[[idx], :]
+            "embeddings": self.embeddings[idx, :]
         }
 
 

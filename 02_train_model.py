@@ -12,12 +12,12 @@ import mlflow
 
 from src.data import PretrainingDataset
 from src.net import RogersNet
-from src.train_parser import train_parser, update_config
+from src.arg_parsers import train_parser, update_config
 
 # Setup -------------------------
 
 # Load config
-with open("./config.yaml", "r") as f:
+with open("./cfg/config.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.CLoader)
 
 mp = config["model_params"]
@@ -77,11 +77,10 @@ net = RogersNet(
 
 # Train ----------------
 
-print("Setting experiment")
 mlflow.set_experiment(config["mlflow_experiment"])
-print("Starting run")
 with mlflow.start_run() as run:
     mlflow.log_dict(config, "config.yaml")
+    mlflow.log_params(tp)
 
     trainer = Trainer(
         accelerator="gpu",
@@ -92,32 +91,3 @@ with mlflow.start_run() as run:
     )
 
     trainer.fit(net, train_dataloaders=train_dl, val_dataloaders=validation_dl)
-
-
-# Test the thing:
-# net.eval()
-# aux = defaultdict(list)
-# projections = []
-
-# with torch.no_grad():
-#     for i, batch in enumerate(test_dl):
-#         for col in config["aux_cols"]:
-#             aux[col] += batch[col]
-#         projections.append(net.inference_forward(batch).cpu())
-
-# df = pl.DataFrame(aux | {"projections": torch.cat(projections, dim=0).numpy()})
-
-# df = df.filter(pl.col("description").is_in(["called_strike", "ball"])).with_columns(
-#     call=pl.col("description").replace({"called_strike": 1, "ball": 0}).cast(pl.Int32)
-# )
-
-# y = df["call"].to_numpy()
-# x = np.stack(df["projections"].to_numpy(), axis=0)
-
-# # TKTK Need to figure out how to get this to work well.
-# lr = LogisticRegression(penalty=None, max_iter=20000)
-# lr.fit(X=x, y=y)
-
-# y_hat = lr.predict_proba(x)
-
-# print(metrics.roc_auc_score(y, y_hat[:, 1]))

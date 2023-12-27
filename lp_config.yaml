@@ -1,0 +1,39 @@
+features:
+  # Pitch characteristics
+  release_speed: numeric
+  release_pos_x: numeric
+  release_pos_z: numeric
+  release_spin_rate: numeric
+  spin_axis: numeric
+  release_extension: numeric
+  pfx_x: numeric
+  pfx_z: numeric
+  plate_x: numeric
+  plate_z: numeric
+
+  # situation
+  balls: numeric
+  strikes: numeric
+
+  # pitcher info
+  p_throws: categorical
+
+  # batter info
+  stand: categorical
+  sz_top: numeric
+  sz_bot: numeric
+
+keys:
+  - game_pk
+  - at_bat_number
+  - pitch_number
+
+# For testing mainly
+aux_cols:
+  - pitch_type
+
+split_seed: 212
+train_data_path: ./data/2023_data.parquet
+checkpoint_name: epoch=0-step=283
+run_id: 3a0e3a828a654da9840f35565bb8c0bc
+

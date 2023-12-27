@@ -32,7 +32,8 @@ class FeatureEmbedder(nn.Module):
         self.embedding_layers = nn.ModuleDict(
             {
                 feature: morpher.make_embedding(self.output_size)
-                for feature, morpher in self.morphers.items()
+                # sorted so it's always the same order
+                for feature, morpher in sorted(self.morphers.items())
             }
         )
 

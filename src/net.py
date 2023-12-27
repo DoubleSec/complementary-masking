@@ -30,7 +30,13 @@ class RogersNet(pl.LightningModule):
         weight_decay: float,
     ):
         super().__init__()
-        self.save_hyperparameters()
+        # We'll log these manually later.
+        self.save_hyperparameters(logger=False)
+        # We'll do morpher saving here for minimal error-possibilities.
+        self.morphers = morphers
+
+        # Some behavior for predictions
+        self.predict_cols = None
 
         # Feature embedder
         self.embedding_layer = FeatureEmbedder(
@@ -85,8 +91,14 @@ class RogersNet(pl.LightningModule):
         self.loss = BarlowTwinsLoss(lambda_=bt_lambda)
 
     def on_train_start(self):
+        # Custom hyperparameter logging.
         self.logger.log_hyperparams(
             {k: v for k, v in self.hparams.items() if k != "morphers"}
+        )
+        self.logger.experiment.log_dict(
+            run_id=self.logger.run_id,
+            dictionary={feat: m.save_state_dict() for feat, m in self.morphers.items()},
+            artifact_file="morphers/morphers.yaml",
         )
 
     def configure_optimizers(self):
@@ -147,3 +159,11 @@ class RogersNet(pl.LightningModule):
         x = self.projection_head(x[:, -1, :])
 
         return x
+
+    def predict_step(self, x):
+        y_hat = self.inference_forward(x)
+        if self.predict_cols is not None:
+            extra_cols = {col: x[col] for col in self.predict_cols}
+            return y_hat, extra_cols
+        else:
+            return y_hat

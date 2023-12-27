@@ -82,6 +82,23 @@ class PretrainingDataset(torch.utils.data.Dataset):
         return return_dict
 
 
+class LinearProbeDataset(torch.utils.data.Dataset):
+    def __init__(self, targets: pl.DataFrame, embeddings: torch.Tensor):
+        self.targets = targets
+        self.embeddings = embeddings
+
+        assert targets.height == embeddings.shape[0]
+
+    def __len__(self):
+        return self.embeddings.shape[0]
+
+    def __getitem__(self, idx):
+        row = self.targets.row(idx, named=True)
+        return {col: torch.tensor(row[col], dtype=torch.float32) for col in row} | {
+            "embedding": self.embeddings[[idx], :]
+        }
+
+
 if __name__ == "__main__":
     import yaml
 

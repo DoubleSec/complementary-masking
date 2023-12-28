@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Lazy temporary solution for multiple runs with different hyperparameters.
-python 03_linear_probe.py --run_id e31b30f3dab7418c87e1f037a150e2a4
-python 03_linear_probe.py --run_id 85d0cd62e89244d7bf1f75539117686c
-python 03_linear_probe.py --run_id 29d7c41afd5341d6b2756171fb692dbf
-python 03_linear_probe.py --run_id 9734af37aee14bb6b4b621fb3e194741
+python 03_linear_probe.py --run_id d201bbf02002492b966db9b583beeb62
+python 03_linear_probe.py --run_id 9000a0b5764a48469f2d0c866456d2b7
+python 03_linear_probe.py --run_id f28d8085343942c381c60b73c7822e42
+python 03_linear_probe.py --run_id cd4bce87b8bd438189a55704fdd3c5dd

@@ -17,6 +17,6 @@ class BarlowTwinsLoss(nn.Module):
 
         on_diag = ((1 - torch.diagonal(c)) ** 2).sum()
         off_diag = ((c * (1 - torch.eye(c.shape[0], device=c.device))) ** 2).sum()
-        # The extra division by 1 - embedding size is so the total weight
+        # The extra division by embedding_size - 1 is so the total weight
         # of the off-diagonal terms is constant regardless of embedding size.
-        return on_diag + (self.lambda_ / (1 - c.shape[0])) * off_diag
+        return on_diag + (self.lambda_ / (c.shape[0] - 1)) * off_diag

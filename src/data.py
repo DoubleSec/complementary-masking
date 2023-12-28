@@ -5,7 +5,7 @@ import morphers
 
 # So we can re-use easily enough.
 DEFAULT_MORPHER_DISPATCH = {
-    "numeric": morphers.Normalizer,
+    "numeric": morphers.RankScaler,
     "categorical": morphers.Integerizer,
 }
 

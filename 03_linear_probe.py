@@ -132,7 +132,7 @@ with mlflow.start_run() as run:
             accelerator="gpu",
             max_epochs=tp["epochs"],
             # Default behavior for both, but we're being explicit.
-            logger=MLFlowLogger(run_id=run.info.run_id, log_model=False),
+            logger=MLFlowLogger(run_id=run.info.run_id, log_model=tp["log_model"]),
             log_every_n_steps=10,
         )
 

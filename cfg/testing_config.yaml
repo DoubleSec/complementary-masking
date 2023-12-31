@@ -34,6 +34,11 @@ train_data_path: ./data/2023_data.parquet
 model_source:
   checkpoint_name: epoch=5-step=1698
   run_id: f28d8085343942c381c60b73c7822e42
+# For explanation testing
+linear_probe_source:
+  checkpoint_name: epoch=15-step=7072
+  run_id: a35797e4d2b94f7ab7a560c5288fe426
+
 
 # This has to match the source run's info. It would be better
 # to reconstruct it somehow.

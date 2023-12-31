@@ -38,7 +38,8 @@ mlflow_experiment: linear_probes
 
 model_source:
   checkpoint_name: epoch=5-step=1698
-  run_id: e31b30f3dab7418c87e1f037a150e2a4
+  # Sometimes overwritten by a command-line argument.
+  run_id: f28d8085343942c381c60b73c7822e42
 
 # This has to match the source run's info. It would be better
 # to reconstruct it somehow.
@@ -59,3 +60,5 @@ model_params:
 training_params:
   batch_size: 128
   epochs: 16
+  # It's possible you'll want to log a model for testing later.
+  log_model: true

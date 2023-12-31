@@ -10,6 +10,12 @@ DEFAULT_MORPHER_DISPATCH = {
 }
 
 
+def make_dispatch(md):
+    return {
+        ctype: getattr(morphers, morpher_name) for ctype, morpher_name in md.items()
+    }
+
+
 class PretrainingDataset(torch.utils.data.Dataset):
     MORPHER_DISPATCH = DEFAULT_MORPHER_DISPATCH
 
@@ -21,10 +27,16 @@ class PretrainingDataset(torch.utils.data.Dataset):
         return_keys: bool = False,
         aux_cols: list = None,
         morpher_states: dict = None,
+        morpher_dispatch: dict = None,
     ):
         self.key_cols = key_cols
         self.return_keys = return_keys
         self.aux_cols = aux_cols if aux_cols is not None else []
+        self.morpher_dispatch = (
+            make_dispatch(morpher_dispatch)
+            if morpher_dispatch is not None
+            else self.MORPHER_DISPATCH
+        )
 
         ds = pl.read_parquet(parquet_path)
 
@@ -33,13 +45,13 @@ class PretrainingDataset(torch.utils.data.Dataset):
         # If there's no prior morpher states, we create them.
         if morpher_states is None:
             self.morphers = {
-                feature: self.MORPHER_DISPATCH[ftype].from_data(ds[feature])
+                feature: self.morpher_dispatch[ftype].from_data(ds[feature])
                 for feature, ftype in cols.items()
             }
         # Otherwise we load their stuff from the state dict.
         else:
             self.morphers = {
-                feature: self.MORPHER_DISPATCH[ftype].from_state_dict(
+                feature: self.morpher_dispatch[ftype].from_state_dict(
                     morpher_states[feature]
                 )
                 for feature, ftype in cols.items()

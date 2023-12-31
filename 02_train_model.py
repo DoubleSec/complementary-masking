@@ -42,7 +42,7 @@ ds = PretrainingDataset(
     parquet_path=config["train_data_path"],
     cols=config["features"],
     key_cols=config["keys"],
-    # aux_cols=config["aux_cols"],
+    morpher_dispatch=config["morpher_dispatch"],
 )
 
 train_ds, validation_ds, test_ds = torch.utils.data.random_split(
@@ -81,6 +81,12 @@ mlflow.set_experiment(config["mlflow_experiment"])
 with mlflow.start_run() as run:
     mlflow.log_dict(config, "config.yaml")
     mlflow.log_params(tp)
+    mlflow.log_params(
+        {
+            f"morpher_{ctype}": morpher_name
+            for ctype, morpher_name in config["morpher_dispatch"].items()
+        }
+    )
 
     trainer = Trainer(
         accelerator="gpu",

@@ -37,6 +37,10 @@ train_data_path: ./data/2023_data.parquet
 split_seed: 212
 morphers_path: ./data/morphers.yaml
 
+morpher_dispatch:
+  numeric: RankScaler
+  categorical: Integerizer
+
 model_params:
   embedding_size: 128
   mask_p: 0.5

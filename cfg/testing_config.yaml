@@ -28,34 +28,15 @@ keys:
   - at_bat_number
   - pitch_number
 
-# For testing mainly
-aux_cols:
-  - pitch_type
-
 split_seed: 212
 train_data_path: ./data/2023_data.parquet
-mlflow_experiment: linear_probes
 
 model_source:
   checkpoint_name: epoch=5-step=1698
-  run_id: e31b30f3dab7418c87e1f037a150e2a4
+  run_id: f28d8085343942c381c60b73c7822e42
 
 # This has to match the source run's info. It would be better
 # to reconstruct it somehow.
 morpher_dispatch:
   numeric: RankScaler
   categorical: Integerizer
-
-model_params:
-  n_layers: 1
-  targets:
-    - fastball
-    - curveball
-    - slider
-    - changeup
-  lr: 0.001
-  weight_decay: 0.01
-
-training_params:
-  batch_size: 128
-  epochs: 16

@@ -8,12 +8,6 @@ import yaml
 import mlflow
 import polars as pl
 
-# For linear probing
-# import polars as pl
-# import numpy as np
-# from sklearn.linear_model import LogisticRegression
-# from sklearn import metrics
-
 from src.data import PretrainingDataset, LinearProbeDataset
 from src.net import RogersNet, LinearProbeNet
 from src.arg_parsers import lp_parser, update_config
@@ -67,6 +61,7 @@ ds = PretrainingDataset(
     key_cols=config["keys"],
     aux_cols=config["aux_cols"],
     morpher_states=morpher_states,
+    morpher_dispatch=config["morpher_dispatch"],
 )
 
 _, _, test_ds = torch.utils.data.random_split(ds, lengths=[0.75, 0.15, 0.1])

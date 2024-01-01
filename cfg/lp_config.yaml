@@ -61,4 +61,4 @@ training_params:
   batch_size: 128
   epochs: 16
   # It's possible you'll want to log a model for testing later.
-  log_model: true
+  log_model: false

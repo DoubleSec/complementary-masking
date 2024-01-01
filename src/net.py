@@ -10,7 +10,7 @@ from .network_layers import (
     ProjectionHead,
     LearnedPositionEncoding,
 )
-from .loss import BarlowTwinsLoss
+from .loss import BarlowTwinsLoss, InfoNCELoss
 
 
 class RogersNet(pl.LightningModule):
@@ -25,7 +25,8 @@ class RogersNet(pl.LightningModule):
         tr_dim_ff: int,
         tr_n_layers: int,
         proj_n_layers: int,
-        bt_lambda: float,
+        loss_type: str,
+        loss_params: dict,
         lr: float,
         weight_decay: float,
     ):
@@ -88,7 +89,14 @@ class RogersNet(pl.LightningModule):
         # Loss, metrics, etc.
         self.lr = lr
         self.weight_decay = weight_decay
-        self.loss = BarlowTwinsLoss(lambda_=bt_lambda)
+        if loss_type == "Barlow twins":
+            loss_class = BarlowTwinsLoss
+        elif loss_type == "InfoNCE":
+            loss_class = InfoNCELoss
+        else:
+            raise ValueError("loss_type must be 'Barlow twins' or 'InfoNCE'")
+
+        self.loss = loss_class(**loss_params)
 
     def on_train_start(self):
         # Custom hyperparameter logging.

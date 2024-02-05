@@ -84,7 +84,7 @@ class RogersNet(pl.LightningModule):
             n_layers=proj_n_layers,
         )
 
-        self.projection_norm = nn.BatchNorm1d(projection_size, affine=False)
+        # self.projection_norm = nn.BatchNorm1d(projection_size, affine=False)
 
         # Loss, metrics, etc.
         self.lr = lr
@@ -136,20 +136,16 @@ class RogersNet(pl.LightningModule):
 
     def training_step(self, x):
         proj1, proj2 = self(x)
-        np1 = self.projection_norm(proj1)
-        np2 = self.projection_norm(proj2)
 
-        loss = self.loss(np1, np2)
+        loss = self.loss(proj1, proj2)
         self.log("train_loss", loss)
 
         return loss
 
     def validation_step(self, x):
         proj1, proj2 = self(x)
-        np1 = self.projection_norm(proj1)
-        np2 = self.projection_norm(proj2)
 
-        loss = self.loss(np1, np2)
+        loss = self.loss(proj1, proj2)
         self.log("validation_loss", loss)
 
         return loss

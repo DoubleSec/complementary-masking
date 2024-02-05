@@ -68,13 +68,6 @@ test_dl = torch.utils.data.DataLoader(
     num_workers=10,
 )
 
-# Initialize the network ----------------
-
-net = RogersNet(
-    morphers=ds.morphers,
-    **mp,
-)
-
 # Train ----------------
 
 mlflow.set_experiment(config["mlflow_experiment"])
@@ -95,5 +88,12 @@ with mlflow.start_run() as run:
         logger=MLFlowLogger(run_id=run.info.run_id, log_model=True),
         log_every_n_steps=10,
     )
+
+    # Initialize the network down here, to initialize on GPU with float16
+    with trainer.init_module():
+        net = RogersNet(
+            morphers=ds.morphers,
+            **mp,
+        )
 
     trainer.fit(net, train_dataloaders=train_dl, val_dataloaders=validation_dl)

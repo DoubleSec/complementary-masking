@@ -8,7 +8,7 @@ import yaml
 
 pybaseball.cache.enable()
 
-with open("./config.yaml", "r") as f:
+with open("./cfg/config.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.CLoader)
 
 print(config["train_data_path"])
@@ -19,5 +19,5 @@ try:
 except FileExistsError:
     print(f"Directory {dir_to_make} already exists, skipping creation")
 
-some_data = pybaseball.statcast("2023-01-01", "2023-12-31")
+some_data = pybaseball.statcast("2021-01-01", "2023-12-31")
 some_data.to_parquet(config["train_data_path"])

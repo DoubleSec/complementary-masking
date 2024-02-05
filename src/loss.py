@@ -3,13 +3,15 @@ from torch import nn
 
 
 class BarlowTwinsLoss(nn.Module):
-    def __init__(self, lambda_: float = 5e-3):
+    def __init__(self, lambda_: float = 1):
         super().__init__()
         self.lambda_ = lambda_
 
     def forward(self, x1, x2):
         # both are n x e
-        # Assuming x1 and x2 have been normalized already
+        # We're normalizing here batch-by-batch, like in the original paper.
+        x1 = (x1 - x1.mean(0)) / x1.std(0)
+        x2 = (x2 - x2.mean(0)) / x2.std(0)
         c = x1.T @ x2
 
         # Divide by the batch size

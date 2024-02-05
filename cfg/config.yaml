@@ -22,7 +22,7 @@ features:
   stand: categorical
   sz_top: numeric
   sz_bot: numeric
-  
+
 
 keys:
   - game_pk
@@ -45,20 +45,20 @@ model_params:
   embedding_size: 128
   mask_p: 0.5
   masking_strategy: learned
-  projection_size: 16
+  projection_size: 32
   tr_nhead: 8
   tr_dim_ff: 1024
   tr_n_layers: 4
   proj_n_layers: 1
   lr: 0.0001
   weight_decay: 0.01
-  loss_type: InfoNCE
+  loss_type: Barlow twins
   loss_params:
-    n_negatives: 31
-    reduction: mean
+    lambda_: 10
 
 training_params:
   batch_size: 2048
-  epochs: 6
+  epochs: 20
+  precision: 16-true
 
 mlflow_experiment: complementary_masking

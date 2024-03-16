@@ -54,7 +54,6 @@ class FeatureEmbedder(nn.Module):
 
 
 class FeatureMasker(nn.Module):
-
     """Masks inputs:
 
     - morphers: just used to identify the number of features
@@ -156,3 +155,32 @@ class ProjectionHead(nn.Module):
     def forward(self, x):
         # x should be n x e
         return self.layers(x)
+
+
+class RMSNorm(nn.Module):
+    """RMSNorm from https://arxiv.org/pdf/1910.07467.pdf"""
+
+    def __init__(self, size: int, eps: float = 1e-6):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(size))
+        self.eps = eps
+
+    def forward(self, x):
+        # x is [whatever] x dim
+        x = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        return x * self.weight
+
+
+class TransformerBlock(nn.Module):
+
+    def __init__(
+        self,
+        dim_model,
+        n_heads,
+        dim_feedforward,
+    ):
+        self.dim_model = dim_model
+        self.n_heads = n_heads
+        self.dim_feedforward = dim_feedforward
+
+        super().__init__()

@@ -39,7 +39,7 @@ mlflow_experiment: linear_probes
 model_source:
   checkpoint_name: epoch=19-step=5660
   # Sometimes overwritten by a command-line argument.
-  run_id: a222af096d284a4d81776159e789a367
+  run_id: 8b69f950dceb4cb5b7b8f5a5a8e83cc2
 
 # This has to match the source run's info. It would be better
 # to reconstruct it somehow.

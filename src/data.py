@@ -95,9 +95,14 @@ class PretrainingDataset(torch.utils.data.Dataset):
 
 
 class LinearProbeDataset(torch.utils.data.Dataset):
-    def __init__(self, targets: pl.DataFrame, embeddings: torch.Tensor):
+    def __init__(
+        self,
+        targets: pl.DataFrame,
+        embeddings: torch.Tensor,
+        embedding_subset: int = None,
+    ):
         self.targets = targets
-        self.embeddings = embeddings
+        self.embeddings = embeddings[:, :embedding_subset]
 
         assert targets.height == embeddings.shape[0]
 

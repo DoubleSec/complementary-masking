@@ -3,7 +3,7 @@ from torch import nn
 
 
 class BarlowTwinsLoss(nn.Module):
-    def __init__(self, lambda_: float = 1):
+    def __init__(self, lambda_: float = 1.0):
         super().__init__()
         self.lambda_ = lambda_
 
@@ -22,6 +22,46 @@ class BarlowTwinsLoss(nn.Module):
         # The extra division by embedding_size - 1 is so the total weight
         # of the off-diagonal terms is constant regardless of embedding size.
         return on_diag + (self.lambda_ / (c.shape[0] - 1)) * off_diag
+
+
+class MatroshkaTwinsLoss(nn.Module):
+    """Barlow twins but with matroshka embeddings."""
+
+    def __init__(self, m: list, max_size: int, lambda_: float = 1.0):
+        super().__init__()
+        self.lambda_ = lambda_
+        self.m = m
+        assert all([mi <= max_size for mi in m])
+        self.term_weights = self._calculate_weights(m, max_size)
+
+    def forward(self, x1, x2):
+        # both are n x e
+        # We're normalizing here batch-by-batch, like in the original paper.
+        x1 = (x1 - x1.mean(0)) / x1.std(0)
+        x2 = (x2 - x2.mean(0)) / x2.std(0)
+        c = x1.T @ x2
+
+        # Divide by the batch size
+        c = c / x1.shape[0]
+
+        # The only modification here is the multiplications by the weight vector.
+        on_diag = torch.sum(((1 - torch.diagonal(c)) ** 2) * self.term_weights)
+        off_diag = (
+            torch.sum(
+                (c * (1 - torch.eye(c.shape[0], device=c.device))) ** 2,
+                dim=0,
+            )
+            * self.term_weights
+        )
+        off_diag = off_diag.sum()
+        # The extra division by embedding_size - 1 is so the total weight
+        # of the off-diagonal terms is constant regardless of embedding size.
+        return on_diag + (self.lambda_ / (c.shape[0] - 1)) * off_diag
+
+    def _calculate_weights(self, m, max_size):
+        pos = torch.arange(max_size).view(1, -1)
+        m = torch.tensor(m).view(-1, 1)
+        return (pos < m).sum(dim=0).squeeze()
 
 
 class InfoNCELoss(nn.Module):

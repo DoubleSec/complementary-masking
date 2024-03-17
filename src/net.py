@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import lightning.pytorch as pl
 from torchmetrics import MetricCollection
-from torchmetrics.classification import BinaryAccuracy, BinaryAUROC
+from torchmetrics.classification import BinaryAUROC
 
 from .network_layers import (
     FeatureEmbedder,
@@ -10,7 +10,13 @@ from .network_layers import (
     ProjectionHead,
     LearnedPositionEncoding,
 )
-from .loss import BarlowTwinsLoss, InfoNCELoss
+from .loss import BarlowTwinsLoss, InfoNCELoss, MatroshkaTwinsLoss
+
+LOSS_OPTIONS = {
+    "Barlow twins": BarlowTwinsLoss,
+    "Matroshka twins": MatroshkaTwinsLoss,
+    "InfoNCE": InfoNCELoss,
+}
 
 
 class RogersNet(pl.LightningModule):
@@ -84,17 +90,13 @@ class RogersNet(pl.LightningModule):
             n_layers=proj_n_layers,
         )
 
-        # self.projection_norm = nn.BatchNorm1d(projection_size, affine=False)
-
         # Loss, metrics, etc.
         self.lr = lr
         self.weight_decay = weight_decay
-        if loss_type == "Barlow twins":
-            loss_class = BarlowTwinsLoss
-        elif loss_type == "InfoNCE":
-            loss_class = InfoNCELoss
-        else:
-            raise ValueError("loss_type must be 'Barlow twins' or 'InfoNCE'")
+        loss_class = LOSS_OPTIONS.get(loss_type, "lolwut")
+        assert (
+            loss_class != "lolwut"
+        ), f"Loss class must be one of {', '.join(LOSS_OPTIONS.keys())}"
 
         self.loss = loss_class(**loss_params)
 

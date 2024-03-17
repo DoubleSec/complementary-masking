@@ -20,6 +20,7 @@ lp_parser = argparse.ArgumentParser(
 lp_parser.add_argument("--base_config", type=str, default="./lp_config.yaml")
 # Hyperparameters that can be controlled from a command line. Not all of them.
 lp_parser.add_argument("--run_id", type=str, required=False)
+lp_parser.add_argument("--embedding_subset", type=int, required=False, default=None)
 
 
 def update_config(args, config: dict):

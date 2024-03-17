@@ -24,6 +24,7 @@ ms = config["model_source"]
 ms = update_config(lp_parser.parse_args(), ms)
 mp = config["model_params"]
 tp = config["training_params"]
+tp = update_config(lp_parser.parse_args(), tp)
 
 # Set a seed
 torch.manual_seed(config["split_seed"])
@@ -95,7 +96,9 @@ embeddings = torch.cat([batch[0] for batch in results], dim=0)[
     ~aux_data["pitch_type"].is_null().to_numpy(), :
 ]
 
-lp_ds = LinearProbeDataset(targets=targets, embeddings=embeddings)
+lp_ds = LinearProbeDataset(
+    targets=targets, embeddings=embeddings, embedding_subset=tp["embedding_subset"]
+)
 train_ds, valid_ds = torch.utils.data.random_split(lp_ds, lengths=[0.75, 0.25])
 
 train_dl = torch.utils.data.DataLoader(
@@ -123,7 +126,7 @@ with mlflow.start_run() as run:
     # We need to train each linear probe separately.
     for target in mp["targets"]:
         lp_net = LinearProbeNet(
-            embedding_dim=net.hparams["projection_size"],
+            embedding_dim=tp["embedding_subset"],
             **{k: v for k, v in mp.items() if k != "targets"},
             targets=target,
         )

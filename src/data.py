@@ -73,6 +73,8 @@ class PretrainingDataset(torch.utils.data.Dataset):
             # Only drop nulls based on inputs
             .drop_nulls([feature for feature in self.morphers])
         )
+        if len(aux_cols) > 0:
+            self.ds = self.ds.drop_nulls(aux_cols)
 
     def __len__(self):
         return self.ds.height

@@ -37,9 +37,9 @@ train_data_path: ./data/2023_data.parquet
 mlflow_experiment: linear_probes
 
 model_source:
-  checkpoint_name: epoch=19-step=5660
+  checkpoint_name: epoch=14-step=4245
   # Sometimes overwritten by a command-line argument.
-  run_id: 8b69f950dceb4cb5b7b8f5a5a8e83cc2
+  run_id: 849d948c6c934bb9bb8f0d050a5e014f
 
 # This has to match the source run's info. It would be better
 # to reconstruct it somehow.

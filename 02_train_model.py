@@ -1,14 +1,10 @@
 import torch
 from lightning.pytorch import Trainer
 from lightning.pytorch.loggers import MLFlowLogger
+from lightning.pytorch.callbacks import ModelCheckpoint
 import yaml
 import mlflow
 
-# For linear probing
-# import polars as pl
-# import numpy as np
-# from sklearn.linear_model import LogisticRegression
-# from sklearn import metrics
 
 from src.data import PretrainingDataset
 from src.net import RogersNet
@@ -87,6 +83,7 @@ with mlflow.start_run() as run:
         # Default behavior for both, but we're being explicit.
         logger=MLFlowLogger(run_id=run.info.run_id, log_model=True),
         log_every_n_steps=10,
+        callbacks=[ModelCheckpoint(monitor="validation_loss", save_top_k=3)],
     )
 
     # Initialize the network down here, to initialize on GPU with float16

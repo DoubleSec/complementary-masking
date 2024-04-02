@@ -10,11 +10,18 @@ from .network_layers import (
     ProjectionHead,
     LearnedPositionEncoding,
 )
-from .loss import BarlowTwinsLoss, InfoNCELoss, MatroshkaTwinsLoss
+from .loss import (
+    BarlowTwinsLoss,
+    InfoNCELoss,
+    MatroshkaTwinsLoss,
+    PositionWeightedBarlowTwins,
+)
+from .camalambakicken import Transformer, RMSNorm
 
 LOSS_OPTIONS = {
     "Barlow twins": BarlowTwinsLoss,
     "Matroshka twins": MatroshkaTwinsLoss,
+    "PW Barlow twins": PositionWeightedBarlowTwins,
     "InfoNCE": InfoNCELoss,
 }
 
@@ -27,9 +34,9 @@ class RogersNet(pl.LightningModule):
         mask_p: float,
         masking_strategy: str,
         projection_size: int,
-        tr_nhead: int,
-        tr_dim_ff: int,
         tr_n_layers: int,
+        tr_type: str,
+        tr_args: dict,
         proj_n_layers: int,
         loss_type: str,
         loss_params: dict,
@@ -53,7 +60,11 @@ class RogersNet(pl.LightningModule):
         )
 
         # Layer norm for features
-        self.feature_norm = nn.LayerNorm(embedding_size)
+        self.feature_norm = (
+            nn.LayerNorm(embedding_size)
+            if tr_type == "basic"
+            else RMSNorm(embedding_size)
+        )
 
         self.masking_layer = FeatureMasker(
             morphers=morphers,
@@ -74,20 +85,35 @@ class RogersNet(pl.LightningModule):
             "cls", nn.Parameter(torch.randn([1, 1, embedding_size]) * 0.02)
         )
 
-        self.transformer = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                d_model=embedding_size,
-                nhead=tr_nhead,
-                dim_feedforward=tr_dim_ff,
-                batch_first=True,
-            ),
-            num_layers=tr_n_layers,
-        )
+        if tr_type == "llama":
+            norm_type = RMSNorm
+            activation_type = nn.GELU
+
+            layer_args = {"d_model": embedding_size} | tr_args
+            self.transformer = Transformer(tr_n_layers, layer_args=layer_args)
+
+        elif tr_type == "basic":
+            norm_type = nn.LayerNorm
+            activation_type = nn.ReLU
+
+            self.transformer = nn.TransformerEncoder(
+                nn.TransformerEncoderLayer(
+                    d_model=embedding_size,
+                    **tr_args,
+                    batch_first=True,
+                ),
+                num_layers=tr_n_layers,
+            )
+
+        else:
+            raise ValueError("tr_type must be 'llama' or 'basic'")
 
         self.projection_head = ProjectionHead(
             input_size=embedding_size,
             output_size=projection_size,
             n_layers=proj_n_layers,
+            norm_type=norm_type,
+            activation_type=activation_type,
         )
 
         # Loss, metrics, etc.

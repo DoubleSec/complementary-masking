@@ -76,8 +76,9 @@ test_dl = torch.utils.data.DataLoader(
 # Get projections
 net.predict_cols = config["aux_cols"]
 
-pred_trainer = Trainer(accelerator="gpu", logger=False)
-results = pred_trainer.predict(net, test_dl)
+with torch.inference_mode():
+    pred_trainer = Trainer(accelerator="gpu", logger=False)
+    results = pred_trainer.predict(net, test_dl)
 
 aux_data = pl.DataFrame(
     {

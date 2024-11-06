@@ -96,7 +96,7 @@ class PositionWeightedBarlowTwins(nn.Module):
     def _calculate_weights(self, exp, max_size):
         weights = torch.zeros([max_size, max_size])
         for i in range(max_size):
-            weights[:i, :i] = (max_size - i) ** exp
+            weights[i:, i:] = (max_size - i) ** exp
         return weights
 
 

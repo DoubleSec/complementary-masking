@@ -131,11 +131,6 @@ class RogersNet(pl.LightningModule):
         self.logger.log_hyperparams(
             {k: v for k, v in self.hparams.items() if k != "morphers"}
         )
-        self.logger.experiment.log_dict(
-            run_id=self.logger.run_id,
-            dictionary={feat: m.save_state_dict() for feat, m in self.morphers.items()},
-            artifact_file="morphers/morphers.yaml",
-        )
 
     def configure_optimizers(self):
         return torch.optim.Adam(
@@ -234,7 +229,6 @@ class LinearProbeNet(pl.LightningModule):
         self.loss = nn.BCEWithLogitsLoss(reduction="none")
         metrics = MetricCollection(
             {
-                # "accuracy": BinaryAccuracy(),
                 "AUROC": BinaryAUROC(),
             }
         )

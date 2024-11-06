@@ -1,12 +1,9 @@
 import torch
 from lightning.pytorch import Trainer
-from lightning.pytorch.loggers import MLFlowLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 import yaml
-import mlflow
 
-
-from src.data import PretrainingDataset
+from src.data import PitchDataset, make_dispatch
 from src.net import RogersNet
 from src.arg_parsers import train_parser, update_config
 
@@ -24,21 +21,18 @@ tp = config["training_params"]
 # Set a seed
 torch.manual_seed(config["split_seed"])
 
-# Can I use the tensor cores?
-torch.set_float32_matmul_precision("medium")
-
-# Set mlflow uri: expecting local server
-mlflow.set_tracking_uri(uri="http://127.0.0.1:8081")
-
 # Create a dataset ---------------
 
 # TKTK data module I guess.
 
-ds = PretrainingDataset(
+morpher_dispatch = make_dispatch(config["morpher_dispatch"])
+inputs = {
+    col: (morpher_dispatch[tp], kwargs) for [col, tp, kwargs] in config["features"]
+}
+
+ds = PitchDataset(
     parquet_path=config["train_data_path"],
-    cols=config["features"],
-    key_cols=config["keys"],
-    morpher_dispatch=config["morpher_dispatch"],
+    input_cols=inputs,
 )
 
 train_ds, validation_ds, test_ds = torch.utils.data.random_split(
@@ -50,47 +44,35 @@ train_dl = torch.utils.data.DataLoader(
     batch_size=tp["batch_size"],
     num_workers=10,
     shuffle=True,
+    drop_last=True,
 )
 
 validation_dl = torch.utils.data.DataLoader(
     dataset=validation_ds,
     batch_size=tp["batch_size"],
     num_workers=10,
-)
-
-test_dl = torch.utils.data.DataLoader(
-    dataset=test_ds,
-    batch_size=tp["batch_size"],
-    num_workers=10,
+    drop_last=True,
 )
 
 # Train ----------------
 
-mlflow.set_experiment(config["mlflow_experiment"])
-with mlflow.start_run() as run:
-    mlflow.log_dict(config, "config.yaml")
-    mlflow.log_params(tp)
-    mlflow.log_params(
-        {
-            f"morpher_{ctype}": morpher_name
-            for ctype, morpher_name in config["morpher_dispatch"].items()
-        }
+# Can I use the tensor cores?
+torch.set_float32_matmul_precision("medium")
+
+trainer = Trainer(
+    accelerator="gpu",
+    max_epochs=tp["epochs"],
+    log_every_n_steps=10,
+    callbacks=[ModelCheckpoint(monitor="validation_loss", save_top_k=1)],
+    num_sanity_val_steps=0,
+)
+
+# Initialize the network down here, to initialize on GPU with float16
+with trainer.init_module():
+    net = RogersNet(
+        morphers=ds.input_morphers,
+        **mp,
     )
+    net.compile()
 
-    trainer = Trainer(
-        accelerator="gpu",
-        max_epochs=tp["epochs"],
-        # Default behavior for both, but we're being explicit.
-        logger=MLFlowLogger(run_id=run.info.run_id, log_model=True),
-        log_every_n_steps=10,
-        callbacks=[ModelCheckpoint(monitor="validation_loss", save_top_k=3)],
-    )
-
-    # Initialize the network down here, to initialize on GPU with float16
-    with trainer.init_module():
-        net = RogersNet(
-            morphers=ds.morphers,
-            **mp,
-        )
-
-    trainer.fit(net, train_dataloaders=train_dl, val_dataloaders=validation_dl)
+trainer.fit(net, train_dataloaders=train_dl, val_dataloaders=validation_dl)

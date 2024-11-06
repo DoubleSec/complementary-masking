@@ -1,28 +1,29 @@
 features:
   # Pitch characteristics
-  release_speed: numeric
-  release_pos_x: numeric
-  release_pos_z: numeric
-  release_spin_rate: numeric
-  spin_axis: numeric
-  release_extension: numeric
-  pfx_x: numeric
-  pfx_z: numeric
-  plate_x: numeric
-  plate_z: numeric
+  - [release_speed, numeric, {}]
+  - [release_pos_x, numeric, {}]
+  - [release_pos_z, numeric, {}]
+  - [release_spin_rate, numeric, {}]
+  - [spin_axis, numeric, {}]
+  - [release_extension, numeric, {}]
+  - [pfx_x, numeric, {}]
+  - [pfx_z, numeric, {}]
+  - [plate_x, numeric, {}]
+  - [plate_z, numeric, {}]
 
   # situation
-  balls: numeric
-  strikes: numeric
+  - [balls, numeric, {}]
+  - [strikes, numeric, {}]
 
   # pitcher info
-  p_throws: categorical
+  - [p_throws, categorical, {}]
 
   # batter info
-  stand: categorical
-  sz_top: numeric
-  sz_bot: numeric
+  - [stand, categorical, {}]
+  - [sz_top, numeric, {}]
+  - [sz_bot, numeric, {}]
 
+targets: []
 
 keys:
   - game_pk
@@ -38,11 +39,11 @@ split_seed: 212
 morphers_path: ./data/morphers.yaml
 
 morpher_dispatch:
-  numeric: RankScaler
+  numeric: Normalizer
   categorical: Integerizer
 
 model_params:
-  embedding_size: 128
+  embedding_size: 256
   mask_p: 0.5
   masking_strategy: learned
   projection_size: 32
@@ -51,20 +52,17 @@ model_params:
   tr_args:
     n_kv_heads: 4
     n_q_heads: 8
-    ff_dim: 1024
+    ff_dim: 768
   proj_n_layers: 1
-  lr: 0.0001
+  lr: 0.00001
   weight_decay: 0.01
-  loss_type: PW Barlow twins
+  loss_type: Barlow twins
   loss_params:
     lambda_: 10
-    # Must match projection_size
-    max_size: 32
-    exp: 0.5
 
 training_params:
-  batch_size: 2048
+  batch_size: 4096
   epochs: 20
-  precision: 16-true
+  precision: 16-mixed
 
 mlflow_experiment: complementary_masking

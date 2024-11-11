@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from itertools import chain
+from typing_extensions import Any
 
 import torch
 from torch import nn
@@ -93,6 +94,11 @@ class Extender(nn.Module, ABC):
         super().__init__()
 
     @abstractmethod
+    def name(self):
+        """Name of the extender, for labelling loss."""
+        raise NotImplementedError
+
+    @abstractmethod
     def forward(self, core_net: CoreNet, x):
         """Generic inference forward"""
         raise NotImplementedError
@@ -107,7 +113,7 @@ class Extender(nn.Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def loss(self, *args, **kwargs):
+    def loss(self, *args, **kwargs) -> dict[str, torch.Tensor]:
         """Loss calculation for extender."""
         raise NotImplementedError
 
@@ -116,6 +122,7 @@ class BarlowPretrainer(Extender):
 
     def __init__(
         self,
+        name: str,
         n_features: int,
         embedding_size: int,
         mask_p: float,
@@ -124,9 +131,10 @@ class BarlowPretrainer(Extender):
         proj_n_layers: int,
         loss_params: dict,
         lr: float,
-        weight_decay: float,
+        weight_decay: float = 0.01,
     ):
         super().__init__()
+        self.extender_name = name
 
         self.masking_layer = FeatureMasker(
             n_features=n_features,
@@ -147,7 +155,11 @@ class BarlowPretrainer(Extender):
         # Loss, metrics, etc.
         self.lr = lr
         self.weight_decay = weight_decay
-        self.loss = BarlowTwinsLoss(**loss_params)
+        self.bt_loss = BarlowTwinsLoss(**loss_params)
+
+    @property
+    def name(self):
+        return self.extender_name
 
     def configure_optimizers(self, core_net):
         return torch.optim.Adam(
@@ -156,194 +168,123 @@ class BarlowPretrainer(Extender):
             weight_decay=self.weight_decay,
         )
 
+    def loss(self, input, x):
+        return {self.name: self.bt_loss(x[0], x[1])}
+
+    def training_forward(self, core_net, x):
+        x = core_net.embedding_layer(x)
+        x = core_net.feature_norm(x)
+        x1, x2 = self.masking_layer(x)
+
+        # Everything twice now
+        x1 = core_net.positional_encoding(x1)
+        x1 = torch.cat([x1, core_net.cls.expand([x1.shape[0], -1, -1])], dim=1)
+        x1 = core_net.transformer(x1)
+        x1 = self.projection_head(x1[:, -1, :])
+
+        x2 = core_net.positional_encoding(x2)
+        x2 = torch.cat([x2, core_net.cls.expand([x2.shape[0], -1, -1])], dim=1)
+        x2 = core_net.transformer(x2)
+        x2 = self.projection_head(x2[:, -1, :])
+
+        return x1, x2
+
+    def forward(self, core_net, x):
+        """Not super useful for this model."""
+
+        x = core_net.embedding_layer(x)
+        x = core_net.feature_norm(x)
+
+        x = core_net.positional_encoding(x)
+        x = torch.cat([x, core_net.cls.expand([x.shape[0], -1, -1])], dim=1)
+        x = core_net.transformer(x)
+        x = self.projection_head(x[:, -1, :])
+
+        return x
+
+
+class Identity(Extender):
+    """Simple identity extender, cannot be trained."""
+
+    def __init__(self):
+        super().__init__()
+        self.extender_name = "identity"
+
+    def name(self):
+        return self.extender_name
+
+    def forward(self, core_net: CoreNet, x):
+        return core_net(x)
+
+    def training_forward(self, core_net: CoreNet, x):
+        raise NotImplementedError
+
+    def configure_optimizers(self, core_net):
+        raise NotImplementedError
+
+    def loss(self, *args, **kwargs):
+        raise NotImplementedError
+
 
 class RogersNet(pl.LightningModule):
     def __init__(
         self,
         core_net_args: dict,
-        extender_class,  # I don't know the right type hint.
-        extender_args: dict,
+        extender: type[Extender],
+        extender_args: dict[str, Any],
     ):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(logger=False)
 
         self.core_net = CoreNet(**core_net_args)
-        self.extender = extender_class(**extender_args)
+        self.extender = extender(**extender_args)
 
-    def configure_optimizers(self):
-        return torch.optim.Adam(
-            params=self.parameters(), lr=self.lr, weight_decay=self.weight_decay
+    @classmethod
+    def load_with_core_checkpoint(cls, ckpt_path: str, extender, extender_args):
+        ckpt = torch.load(ckpt_path)
+        core_args = ckpt["hyper_parameters"]["core_net_args"]
+        net = cls(core_args, extender, extender_args)
+        missing_keys, unexpected_keys = net.load_state_dict(
+            ckpt["state_dict"], strict=False
         )
-
-
-class RogersNet(pl.LightningModule):
-    def __init__(
-        self,
-        morphers: dict,
-        embedding_size: int,
-        mask_p: float,
-        masking_strategy: str,
-        projection_size: int,
-        tr_n_layers: int,
-        tr_type: str,
-        tr_args: dict,
-        proj_n_layers: int,
-        loss_type: str,
-        loss_params: dict,
-        lr: float,
-        weight_decay: float,
-    ):
-        super().__init__()
-        # We'll log these manually later.
-        self.save_hyperparameters(logger=False)
-        # We'll do morpher saving here for minimal error-possibilities.
-        self.morphers = morphers
-
-        # Some behavior for predictions
-        self.predict_cols = None
-
-        # Feature embedder
-        self.embedding_layer = FeatureEmbedder(
-            morphers=morphers,
-            output_size=embedding_size,
-            gather="stack",
-        )
-
-        # Layer norm for features
-        self.feature_norm = (
-            nn.LayerNorm(embedding_size)
-            if tr_type == "basic"
-            else RMSNorm(embedding_size)
-        )
-
-        self.masking_layer = FeatureMasker(
-            morphers=morphers,
-            input_size=embedding_size,
-            p=mask_p,
-            masking_strategy=masking_strategy,
-            return_complement=True,
-        )
-
-        # Positional Encoding
-        self.positional_encoding = LearnedPositionEncoding(
-            max_length=len(morphers),
-            d_model=embedding_size,
-        )
-
-        # cls token
-        self.register_parameter(
-            "cls", nn.Parameter(torch.randn([1, 1, embedding_size]) * 0.02)
-        )
-
-        if tr_type == "llama":
-            norm_type = RMSNorm
-            activation_type = nn.GELU
-
-            layer_args = {"d_model": embedding_size} | tr_args
-            self.transformer = Transformer(tr_n_layers, layer_args=layer_args)
-
-        elif tr_type == "basic":
-            norm_type = nn.LayerNorm
-            activation_type = nn.ReLU
-
-            self.transformer = nn.TransformerEncoder(
-                nn.TransformerEncoderLayer(
-                    d_model=embedding_size,
-                    **tr_args,
-                    batch_first=True,
-                ),
-                num_layers=tr_n_layers,
-            )
-
-        else:
-            raise ValueError("tr_type must be 'llama' or 'basic'")
-
-        self.projection_head = ProjectionHead(
-            input_size=embedding_size,
-            output_size=projection_size,
-            n_layers=proj_n_layers,
-            norm_type=norm_type,
-            activation_type=activation_type,
-        )
-
-        # Loss, metrics, etc.
-        self.lr = lr
-        self.weight_decay = weight_decay
-        loss_class = LOSS_OPTIONS.get(loss_type, "lolwut")
-        assert (
-            loss_class != "lolwut"
-        ), f"Loss class must be one of {', '.join(LOSS_OPTIONS.keys())}"
-
-        self.loss = loss_class(**loss_params)
+        if len(missing_keys) > 0:
+            raise ValueError(f"Expected keys missing from state dict: {missing_keys}")
+        return net
 
     def on_train_start(self):
-        # Custom hyperparameter logging.
-        self.logger.log_hyperparams(
-            {k: v for k, v in self.hparams.items() if k != "morphers"}
-        )
+        core_params = {
+            f"core_{k}": v
+            for k, v in self.hparams["core_net_args"].items()
+            if not isinstance(v, dict)
+        }
+        self.logger.log_hyperparams(core_params)
+        self.logger.log_hyperparams(self.hparams["extender_args"])
 
     def configure_optimizers(self):
-        return torch.optim.Adam(
-            params=self.parameters(), lr=self.lr, weight_decay=self.weight_decay
-        )
+        return self.extender.configure_optimizers(self.core_net)
 
     def forward(self, x):
-        x = self.embedding_layer(x)
-        x = self.feature_norm(x)
-        x1, x2 = self.masking_layer(x)
-
-        normed_cls = self.feature_norm(self.cls)
-
-        # Everything twice now
-        x1 = self.positional_encoding(x1)
-        x1 = torch.cat([x1, normed_cls.expand([x1.shape[0], -1, -1])], dim=1)
-        x1 = self.transformer(x1)
-        x1 = self.projection_head(x1[:, -1, :])
-
-        x2 = self.positional_encoding(x2)
-        x2 = torch.cat([x2, normed_cls.expand([x2.shape[0], -1, -1])], dim=1)
-        x2 = self.transformer(x2)
-        x2 = self.projection_head(x2[:, -1, :])
-
-        return x1, x2
+        return self.extender.forward(self.core_net, x)
 
     def training_step(self, x):
-        proj1, proj2 = self(x)
 
-        loss = self.loss(proj1, proj2)
+        y = self.extender.training_forward(self.core_net, x)
+
+        losses = self.extender.loss(x, y)
+        self.log_dict({f"train_{k}_loss": v for k, v in losses.items()})
+        loss = sum(losses.values())
         self.log("train_loss", loss)
-
         return loss
 
     def validation_step(self, x):
-        proj1, proj2 = self(x)
 
-        loss = self.loss(proj1, proj2)
+        y = self.extender.training_forward(self.core_net, x)
+
+        losses = self.extender.loss(x, y)
+        self.log_dict({f"validation_{k}_loss": v for k, v in losses.items()})
+        loss = sum(losses.values())
         self.log("validation_loss", loss)
-
         return loss
-
-    def inference_forward(self, x):
-        """Same as normal forward but it skips masking and only returns once."""
-        x = self.embedding_layer(x)
-        x = self.feature_norm(x)
-
-        normed_cls = self.feature_norm(self.cls)
-
-        x = self.positional_encoding(x)
-        x = torch.cat([x, normed_cls.expand([x.shape[0], -1, -1])], dim=1)
-        x = self.transformer(x)
-        x = self.projection_head(x[:, -1, :])
-
-        return x
-
-    def predict_step(self, x):
-        y_hat = self.inference_forward(x)
-        if self.predict_cols is not None:
-            extra_cols = {col: x[col] for col in self.predict_cols}
-            return y_hat, extra_cols
-        else:
-            return y_hat
 
 
 class LinearProbeNet(pl.LightningModule):

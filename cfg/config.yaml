@@ -42,27 +42,26 @@ morpher_dispatch:
   numeric: Normalizer
   categorical: Integerizer
 
-model_params:
+core_net_params:
   embedding_size: 256
+  tr_n_layers: 4
+  n_kv_heads: 4
+  n_q_heads: 8
+  ff_dim: 768
+
+bt_params:
+  name: barlow_twins
   mask_p: 0.5
   masking_strategy: learned
-  projection_size: 32
-  tr_n_layers: 4
-  tr_type: llama
-  tr_args:
-    n_kv_heads: 4
-    n_q_heads: 8
-    ff_dim: 768
-  proj_n_layers: 1
-  lr: 0.00001
-  weight_decay: 0.01
-  loss_type: Barlow twins
+  projection_size: 64
+  proj_n_layers: 4
   loss_params:
     lambda_: 10
+  lr: 0.0001
+  weight_decay: 0.01
+  
 
 training_params:
   batch_size: 4096
-  epochs: 20
+  epochs: 3
   precision: 16-mixed
-
-mlflow_experiment: complementary_masking

@@ -4,7 +4,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 import yaml
 
 from src.data import PitchDataset, make_dispatch
-from src.net import RogersNet
+from src.net import RogersNet, BarlowPretrainer
 from src.arg_parsers import train_parser, update_config
 
 # Setup -------------------------
@@ -12,10 +12,6 @@ from src.arg_parsers import train_parser, update_config
 # Load config
 with open("./cfg/config.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.CLoader)
-
-mp = config["model_params"]
-# Update the config if any command line arguments are set
-mp = update_config(train_parser.parse_args(), mp)
 tp = config["training_params"]
 
 # Set a seed
@@ -69,9 +65,17 @@ trainer = Trainer(
 
 # Initialize the network down here, to initialize on GPU with float16
 with trainer.init_module():
+
+    core_net_args = config["core_net_params"] | {"morphers": ds.input_morphers}
+    extender_args = {
+        "n_features": len(ds.input_morphers),
+        "embedding_size": core_net_args["embedding_size"],
+    } | config["bt_params"]
+
     net = RogersNet(
-        morphers=ds.input_morphers,
-        **mp,
+        core_net_args=core_net_args,
+        extender=BarlowPretrainer,
+        extender_args=extender_args,
     )
     net.compile()
 

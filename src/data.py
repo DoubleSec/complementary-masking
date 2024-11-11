@@ -21,7 +21,7 @@ class PitchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         parquet_path: str,
-        input_cols: dict,
+        input_cols: dict | None = None,
         input_morphers: dict | None = None,
         target_cols: dict | None = None,
         target_morphers: dict | None = None,
@@ -127,20 +127,3 @@ class LinearProbeDataset(torch.utils.data.Dataset):
         return {col: torch.tensor(row[col], dtype=torch.float32) for col in row} | {
             "embeddings": self.embeddings[idx, :]
         }
-
-
-if __name__ == "__main__":
-    import yaml
-
-    with open("./config.yaml", "r") as f:
-        config = yaml.load(f, Loader=yaml.CLoader)
-
-    ds = PretrainingDataset(
-        parquet_path=config["train_data_path"],
-        cols=config["features"],
-        key_cols=config["keys"],
-        aux_cols=config["aux_cols"],
-    )
-
-    print(len(ds))
-    print(ds[200])

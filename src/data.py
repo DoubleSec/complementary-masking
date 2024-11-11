@@ -22,11 +22,11 @@ class PitchDataset(torch.utils.data.Dataset):
         self,
         parquet_path: str,
         input_cols: dict,
-        input_morphers: dict = None,
-        target_cols: dict = None,
-        target_morphers: dict = None,
-        key_cols: list = None,
-        aux_cols: list = None,
+        input_morphers: dict | None = None,
+        target_cols: dict | None = None,
+        target_morphers: dict | None = None,
+        key_cols: list | None = None,
+        aux_cols: list | None = None,
     ):
         self.key_cols = key_cols if key_cols is not None else []
         self.aux_cols = aux_cols if aux_cols is not None else []
@@ -112,7 +112,7 @@ class LinearProbeDataset(torch.utils.data.Dataset):
         self,
         targets: pl.DataFrame,
         embeddings: torch.Tensor,
-        embedding_subset: int = None,
+        embedding_subset: int | None = None,
     ):
         self.targets = targets
         self.embeddings = embeddings[:, :embedding_subset]

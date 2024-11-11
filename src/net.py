@@ -1,3 +1,6 @@
+from abc import ABC, abstractmethod
+from itertools import chain
+
 import torch
 from torch import nn
 import lightning.pytorch as pl
@@ -24,6 +27,153 @@ LOSS_OPTIONS = {
     "PW Barlow twins": PositionWeightedBarlowTwins,
     "InfoNCE": InfoNCELoss,
 }
+
+
+class CoreNet(nn.Module):
+    """Core of network shared for any task."""
+
+    def __init__(
+        self,
+        morphers: dict,
+        embedding_size: int,
+        tr_n_layers: int,
+        n_kv_heads: int,
+        n_q_heads: int,
+        ff_dim: int,
+    ):
+        super().__init__()
+        self.morphers = morphers
+
+        # Feature embedder
+        self.embedding_layer = FeatureEmbedder(
+            morphers=morphers,
+            output_size=embedding_size,
+            gather="stack",
+        )
+
+        # Layer norm for features
+        self.feature_norm = RMSNorm(embedding_size)
+
+        # Positional Encoding
+        self.positional_encoding = LearnedPositionEncoding(
+            max_length=len(morphers),
+            d_model=embedding_size,
+        )
+
+        self.transformer = Transformer(
+            tr_n_layers,
+            layer_args={
+                "d_model": embedding_size,
+                "n_kv_heads": n_kv_heads,
+                "n_q_heads": n_q_heads,
+                "ff_dim": ff_dim,
+            },
+        )
+
+        # cls token
+        self.register_parameter(
+            "cls", nn.Parameter(torch.randn([1, 1, embedding_size]) * 0.02)
+        )
+
+    def forward(self, x):
+        """Generic forward for inference or fine-tuning."""
+        x = self.embedding_layer(x)
+        x = self.feature_norm(x)
+        x = self.positional_encoding(x)
+        x = self.transformer(x)
+        x = torch.cat([x, self.cls.expand([x.shape[0], -1, -1])], dim=1)
+        x = x[:, -1, :]
+        return x
+
+
+class Extender(nn.Module, ABC):
+
+    def __init__(self, *args, **kwargs):
+        """Initialize anything needed for the extender."""
+        super().__init__()
+
+    @abstractmethod
+    def forward(self, core_net: CoreNet, x):
+        """Generic inference forward"""
+        raise NotImplementedError
+
+    def training_forward(self, core_net: CoreNet, x):
+        """Forward for training. May be the same as forward."""
+        return self.forward(core_net, x)
+
+    @abstractmethod
+    def configure_optimizers(self, core_net):
+        """Configure optimizers hook to use with lightning."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def loss(self, *args, **kwargs):
+        """Loss calculation for extender."""
+        raise NotImplementedError
+
+
+class BarlowPretrainer(Extender):
+
+    def __init__(
+        self,
+        n_features: int,
+        embedding_size: int,
+        mask_p: float,
+        masking_strategy: str,
+        projection_size: int,
+        proj_n_layers: int,
+        loss_params: dict,
+        lr: float,
+        weight_decay: float,
+    ):
+        super().__init__()
+
+        self.masking_layer = FeatureMasker(
+            n_features=n_features,
+            input_size=embedding_size,
+            p=mask_p,
+            masking_strategy=masking_strategy,
+            return_complement=True,
+        )
+
+        self.projection_head = ProjectionHead(
+            input_size=embedding_size,
+            output_size=projection_size,
+            n_layers=proj_n_layers,
+            norm_type=RMSNorm,
+            activation_type=nn.GELU,
+        )
+
+        # Loss, metrics, etc.
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.loss = BarlowTwinsLoss(**loss_params)
+
+    def configure_optimizers(self, core_net):
+        return torch.optim.Adam(
+            params=chain(self.parameters(), core_net.parameters()),
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+        )
+
+
+class RogersNet(pl.LightningModule):
+    def __init__(
+        self,
+        core_net_args: dict,
+        extender_class,  # I don't know the right type hint.
+        extender_args: dict,
+    ):
+        super().__init__()
+        self.save_hyperparameters()
+
+        self.core_net = CoreNet(**core_net_args)
+        self.extender = extender_class(**extender_args)
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(
+            params=self.parameters(), lr=self.lr, weight_decay=self.weight_decay
+        )
 
 
 class RogersNet(pl.LightningModule):

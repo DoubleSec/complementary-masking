@@ -65,7 +65,7 @@ class FeatureMasker(nn.Module):
 
     def __init__(
         self,
-        morphers: dict,
+        n_features: int,
         input_size: int,
         p: float = 0.5,
         masking_strategy: str = "zero",
@@ -73,7 +73,7 @@ class FeatureMasker(nn.Module):
     ):
         super().__init__()
 
-        self.n_features = len(morphers)
+        self.n_features = n_features
         self.input_size = input_size
         # I have ZERO idea of whether this matters or not.
         self.register_buffer("p", torch.tensor(p))

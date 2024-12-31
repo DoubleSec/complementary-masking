@@ -1,3 +1,5 @@
+experiment_name: pretraining
+
 features:
   # Pitch characteristics
   - [release_speed, numeric, {}]
@@ -8,8 +10,8 @@ features:
   - [release_extension, numeric, {}]
   - [pfx_x, numeric, {}]
   - [pfx_z, numeric, {}]
-  - [plate_x, numeric, {}]
-  - [plate_z, numeric, {}]
+  # - [plate_x, numeric, {}]
+  # - [plate_z, numeric, {}]
 
   # situation
   - [balls, numeric, {}]
@@ -43,25 +45,25 @@ morpher_dispatch:
   categorical: Integerizer
 
 core_net_params:
-  embedding_size: 256
+  embedding_size: 16
   tr_n_layers: 4
   n_kv_heads: 4
-  n_q_heads: 8
-  ff_dim: 768
+  n_q_heads: 4
+  ff_dim: 48
 
 bt_params:
   name: barlow_twins
   mask_p: 0.5
   masking_strategy: learned
-  projection_size: 64
+  projection_size: 48
   proj_n_layers: 4
   loss_params:
-    lambda_: 10
+    lambda_: 1
   lr: 0.0001
   weight_decay: 0.01
   
 
 training_params:
   batch_size: 4096
-  epochs: 3
+  epochs: 40
   precision: 16-mixed

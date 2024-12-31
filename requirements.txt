@@ -1,8 +1,10 @@
 torch>=2.1.2
-pytorch-lightning>=2.1.2
+lightning>=2.1.2
 polars>=0.20.1
 numpy>=1.26.2
 pybaseball>=2.2.7
 captum>=0.7.0
 seaborn>=0.13.0
 morphers
+logzero
+tensorboard

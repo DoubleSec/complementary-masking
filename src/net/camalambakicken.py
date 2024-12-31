@@ -3,6 +3,8 @@ from torch import nn
 from torch.nn import functional as F
 import math
 
+"""Code for a slightly stronger transformer formulation."""
+
 
 class RMSNorm(nn.Module):
 

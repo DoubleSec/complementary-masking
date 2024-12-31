@@ -4,3 +4,4 @@ lightning_logs/
 mlruns/
 mlartifacts/
 testo/
+logs/

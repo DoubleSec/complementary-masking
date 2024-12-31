@@ -1,0 +1,38 @@
+experiment_name: balls_and_strikes_lora
+
+source_checkpoint: logs/pretraining/version_0/checkpoints/epoch=13-step=1974.ckpt
+
+targets:
+  - [type, categorical, {}]
+
+keys:
+  - game_pk
+  - at_bat_number
+  - pitch_number
+
+# For testing mainly
+aux_cols:
+  - description
+
+train_data_path: ./data/2023_data.parquet
+split_seed: 212
+morphers_path: ./data/morphers.yaml
+
+morpher_dispatch:
+  numeric: Normalizer
+  categorical: Integerizer
+
+extender_params:
+  name: lora
+  target_column: type
+  k: 4
+  scale: 1.0
+  n_predictor_layers: 4
+  lr: 0.0001
+  weight_decay: 0.01
+  
+
+training_params:
+  batch_size: 4096
+  epochs: 10
+  precision: 16-mixed

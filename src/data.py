@@ -1,6 +1,7 @@
+from typing import Callable
+
 import polars as pl
 import torch
-
 import morphers
 
 # So we can re-use easily enough.
@@ -21,6 +22,7 @@ class PitchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         parquet_path: str,
+        filter_function: Callable | None = None,
         input_cols: dict | None = None,
         input_morphers: dict | None = None,
         target_cols: dict | None = None,
@@ -33,6 +35,8 @@ class PitchDataset(torch.utils.data.Dataset):
         self.target_cols = target_cols if target_cols is not None else []
 
         ds = pl.read_parquet(parquet_path)
+        if filter_function is not None:
+            ds = filter_function(ds)
 
         # Set up morphers
 

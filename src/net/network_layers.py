@@ -134,8 +134,8 @@ class ProjectionHead(nn.Module):
         input_size: int,
         output_size: int,
         n_layers: int = 1,
-        norm_type=nn.LayerNorm,
-        activation_type=nn.ReLU,
+        norm_type: type[nn.Module] = nn.LayerNorm,
+        activation_type: type[nn.Module] = nn.ReLU,
     ):
         super().__init__()
 
@@ -145,15 +145,27 @@ class ProjectionHead(nn.Module):
 
         self.layers = nn.Sequential()
 
+        for _ in range(n_layers - 1):
+            self.layers.append(norm_type(self.input_size))
+            self.layers.append(activation_type())
+            self.layers.append(nn.Linear(self.input_size, self.input_size))
+
         self.layers.append(norm_type(self.input_size))
         self.layers.append(activation_type())
         self.layers.append(nn.Linear(self.input_size, self.output_size))
 
-        for _ in range(n_layers - 1):
-            self.layers.append(norm_type(self.output_size))
-            self.layers.append(activation_type())
-            self.layers.append(nn.Linear(self.output_size, self.output_size))
-
     def forward(self, x):
         # x should be n x e
         return self.layers(x)
+
+
+class ComplementaryMasker(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        mask = torch.rand_like(x) > 0.5
+        x1 = torch.where(mask, x, 0.0)
+        x2 = torch.where(mask, 0.0, x)
+        return x1, x2

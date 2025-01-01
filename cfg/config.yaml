@@ -65,5 +65,5 @@ bt_params:
 
 training_params:
   batch_size: 4096
-  epochs: 40
+  epochs: 15
   precision: 16-mixed

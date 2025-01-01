@@ -102,10 +102,11 @@ class BarlowPretrainer(Extender):
         )
 
     def loss(self, input, x):
+        # x will have 4 elements: see training_forward
         batch_loss = {self.name: self.bt_loss(x[0], x[1])}
         metrics = {
-            "alignment": alignment(x[0], x[1]),
-            "uniformity": (uniformity(x[0]) + uniformity(x[1])) / 2,
+            "alignment": alignment(x[2], x[3]),
+            "uniformity": (uniformity(x[2]) + uniformity(x[3])) / 2,
         }
         return batch_loss, metrics
 
@@ -118,14 +119,15 @@ class BarlowPretrainer(Extender):
         x1 = core_net.positional_encoding(x1)
         x1 = torch.cat([x1, core_net.cls.expand([x1.shape[0], -1, -1])], dim=1)
         x1 = core_net.transformer(x1)
-        x1 = self.projection_head(x1[:, -1, :])
+        x1_proj = self.projection_head(x1[:, -1, :])
 
         x2 = core_net.positional_encoding(x2)
         x2 = torch.cat([x2, core_net.cls.expand([x2.shape[0], -1, -1])], dim=1)
         x2 = core_net.transformer(x2)
-        x2 = self.projection_head(x2[:, -1, :])
+        x2_proj = self.projection_head(x2[:, -1, :])
 
-        return x1, x2
+        # Return both the projections and the embeddings.
+        return x1_proj, x2_proj, x1[:, -1, :], x2[:, -1, :]
 
     def forward(self, core_net, x):
         """Not super useful for this model."""
